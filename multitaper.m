@@ -118,7 +118,7 @@ end
 %  the unit of time is seconds, then f is in cycles/second (Hz)."
 
 % calculate number of windows
-numWindows = floor(size(concatenatedStop,3)/(windowSize*samplingRate/frameShift));
+numWindows = floor((size(concatenatedStop,3)-windowSize*samplingRate)/(windowSize*samplingRate/frameShift));
 % initialize multitaper_pxx cell array(s) for comp.efficency (quicker computation)
 multitaper_pxx_stop = zeros(numTrials,numWindows,size(frequency_range,2),numChannels);
 % multitaper_pxx_init 
@@ -130,8 +130,11 @@ for idxTrial = 1:numTrials
         
     for idxWindow = 1:numWindows
         % extract current data
-        currentDataIndices = (1+(idxWindow-1)*windowSize*samplingRate:min(idxWindow*windowSize,size(concatenatedStop,3))); % indices corresp to proper window
-        currentData = squeeze(concatenatedStop(idxTrial,:,currentDataIndices));
+        currentStartIndex = 1+(idxWindow-1)*windowSize*samplingRate/frameShift; % start index for current window
+        currentStopIndex = samplingRate*windowSize + currentStartIndex - 1; % stop index for current window
+        currentStopIndex = min(currentStopIndex,size(concatenatedStop,3)); % avoid end of data frame issues
+        currentDataIndices = (currentStartIndex:currentStopIndex); % indices corresp to proper window
+        currentData = squeeze(concatenatedStop(idxTrial,:,currentDataIndices)); % squeeze into 2-dim matrix
         
         % calculate the spectral estimate using multitaper
         tic
@@ -150,9 +153,14 @@ end
 
 % prepare the data
 multitaper_stop_featMat = helperFunctions.makeFeatMat(multitaper_pxx_stop);
-% rank features using Fisher score 
+pwelch_stop_featMat = helperFunctions.makeFeatMat(pwelch_pxx_stop);
+% concatenate all data into one array (for both)
 multitaper_stop_featMat_allTrials = reshape(multitaper_stop_featMat,[size(multitaper_stop_featMat,1),size(multitaper_stop_featMat,2)*size(multitaper_stop_featMat,3)]);
+pwelch_stop_featMat_allTrials = reshape(pwelch_stop_featMat,[size(pwelch_stop_featMat,1),size(pwelch_stop_featMat,2)*size(pwelch_stop_featMat,3)]);
+
+
 % normalize the features
-multitaper_stop_featMat = zscore(multitaper_stop_featMat');
+multitaper_stop_featMat_allTrials = zscore(multitaper_stop_featMat_allTrials');
+
 % rank the features
 [fisherInd, fisherPower] = helperFunctions.rankfeat(multitaper_stop_featMat_allTrials,mi_term_labels', 'fisher');
