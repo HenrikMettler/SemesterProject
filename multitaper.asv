@@ -170,6 +170,6 @@ end
 multitaper_stop_featMat_allTrials = zscore(multitaper_stop_featMat_allTrials');
 pwelch_stop_featMat_allTrials = zscore(pwelch_stop_featMat_allTrials');
 
-% rank the features using fisher score
-[multitaper_fisherInd, multitaper_fisherPower] = helperFunctions.rankfeat(multitaper_stop_featMat_allTrials,trueLabels, 'fisher');
-[pwelch_fisherInd, pwelch_fisherPower] = helperFunctions.rankfeat(pwelch_stop_featMat_allTrials,trueLabels, 'fisher');
+% rank the features using fisher Ss
+[multitaper_fisherInd, multitaper_fisherPower] = helperFunctions.rankfeat(multitaper_stop_featMat_allTrials,mi_term_labels', 'fisher');
+[multitaper_fisherInd, multitaper_fisherPower] = helperFunctions.rankfeat(multitaper_stop_featMat_allTrials,mi_term_labels', 'fisher');
