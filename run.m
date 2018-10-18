@@ -91,50 +91,50 @@ concatenatedStopOnes = concatenatedStop(:,:,-stopParam.window(1)*samplingRate+1:
 [pwelchZero_pxx,pwelchZero_timer] = helperFunctions.calculatePSD(concatenatedStopZeros,'pwelch',pwelchParam,frameShift,samplingRate);
 [pwelchOne_pxx,pwelchOne_timer] = helperFunctions.calculatePSD(concatenatedStopOnes,'pwelch',pwelchParam,frameShift,samplingRate);
 
-multitaper_pxx = cat(2,multitaperZero_pxx,multitaperOne_pxx);
-pwelch_pxx = cat(2,pwelchZero_pxx,pwelchOne_pxx);
+multitaper.pxx = cat(2,multitaperZero_pxx,multitaperOne_pxx);
+pwelch.pxx = cat(2,pwelchZero_pxx,pwelchOne_pxx);
 
 %% build the decoder
 
 % prepare the data
-multitaper_featMat = helperFunctions.makeFeatMat(multitaper_pxx);
-pwelch_featMat = helperFunctions.makeFeatMat(pwelch_pxx);
+multitaper.featMat = helperFunctions.makeFeatMat(multitaper.pxx);
+pwelch.featMat = helperFunctions.makeFeatMat(pwelch.pxx);
 % concatenate all data into one array (for both)
-multitaper_featMat_allTrials = reshape(multitaper_featMat,[size(multitaper_featMat,1),size(multitaper_featMat,2)*size(multitaper_featMat,3)]);
-pwelch_featMat_allTrials = reshape(pwelch_featMat,[size(pwelch_featMat,1),size(pwelch_featMat,2)*size(pwelch_featMat,3)]);
+multitaperfeatMat.allTrials = reshape(multitaper.featMat,[size(multitaperfeat.Mat,1),size(multitaper.featMat,2)*size(multitaper.featMat,3)]);
+pwelchfeatMat_allTrials = reshape(pwelch.featMat,[size(pwelch.featMat,1),size(pwelch.featMat,2)*size(pwelch.featMat,3)]);
 
 
 % create two ground truth for the labels (can be diff, if windowsSize not
 % identical)
-multitaperTrueLabels = helperFunctions.makeLabels(stopParam.window,multitaperParam,frameShift,numTrials);
-pwelchTrueLabels = helperFunctions.makeLabels(stopParam.window,pwelchParam,frameShift,numTrials);
+multitaper.trueLabels = helperFunctions.makeLabels(stopParam.window,multitaperParam,frameShift,numTrials);
+pwelch.trueLabels = helperFunctions.makeLabels(stopParam.window,pwelchParam,frameShift,numTrials);
 
 % normalize the features (! needs to be done after doing CV-split!)
-multitaper_featMat_allTrials = zscore(multitaper_featMat_allTrials');
-pwelch_featMat_allTrials = zscore(pwelch_featMat_allTrials');
+multitaper.featMat_allTrials = zscore(multitaper.featMat_allTrials');
+pwelch.featMat_allTrials = zscore(pwelch.featMat_allTrials');
 
 % rank the features (currently fisher method is used)
-[multitaper_fisherInd, multitaper_fisherPower] = helperFunctions.rankfeat(multitaper_featMat_allTrials,multitaperTrueLabels, 'fisher');
-[pwelch_fisherInd, pwelch_fisherPower] = helperFunctions.rankfeat(pwelch_featMat_allTrials,pwelchTrueLabels, 'fisher');
+[multitaper.fisherInd, multitaper.fisherPower] = helperFunctions.rankfeat(multitaper.featMat_allTrials,multitaper.trueLabels, 'fisher');
+[pwelch.fisherInd, pwelch.fisherPower] = helperFunctions.rankfeat(pwelch.featMat_allTrials,pwelch.trueLabels, 'fisher');
 
 % project the fisher score onto a 2D image channel x frequency
-multitaper_fisherScores = helperFunctions.projectFeatScores(multitaper_featMat_allTrials,...
-    multitaper_fisherInd,multitaper_fisherPower,frequencyRange,numChannels);
-pwelch_fisherScores = helperFunctions.projectFeatScores(pwelch_featMat_allTrials,...
-    pwelch_fisherInd,pwelch_fisherPower,frequencyRange,numChannels);
+multitaper.fisherScores = helperFunctions.projectFeatScores(multitaperfeatMat.allTrials,...
+    multitaper.fisherInd,multitaper.fisherPower,frequencyRange,numChannels);
+pwelch.fisherScores = helperFunctions.projectFeatScores(pwelch.featMat_allTrials,...
+    pwelch.fisherInd,pwelch.fisherPower,frequencyRange,numChannels);
 
 % plot fisher scores
 multitaperTitle = ['Features discriminancy map based on FS: Multitaper'];
 pwelchTitle = ['Features discriminancy map based on FS: pWelch'];
 featureDiscrimMultitaper = figure(99);
-helperFunctions.plotFisherScores(frequencyRange,multitaper_fisherScores,multitaperTitle,{chanlocs16.labels})
+helperFunctions.plotFisherScores(frequencyRange,multitaper.fisherScores,multitaperTitle,{chanlocs16.labels})
 featureDiscrimPwelch = figure(98);
-helperFunctions.plotFisherScores(frequencyRange,pwelch_fisherScores,pwelchTitle,{chanlocs16.labels})
+helperFunctions.plotFisherScores(frequencyRange,pwelch.fisherScores,pwelchTitle,{chanlocs16.labels})
 
 
 % perform and plot feature selection for both decoder
-multitaperClassError = helperFunctions.featureSelection(multitaper_featMat_allTrials,multitaper_fisherInd,multitaperTrueLabels, classifierParam);
-pwelchClassError = helperFunctions.featureSelection(pwelch_featMat_allTrials,pwelch_fisherInd,pwelchTrueLabels,classifierParam);
+multitaperClassError = helperFunctions.featureSelection(multitaperfeatMat_allTrials,multitaper.fisherInd,multitaper.trueLabels, classifierParam);
+pwelchClassError = helperFunctions.featureSelection(pwelchfeatMat_allTrials,pwelch_fisherInd,pwelch.trueLabels,classifierParam);
 featureSelectionMultitaper = figure(97);
 helperFunctions.plotFeatureSelection(multitaperClassError,'Class error for diff no. features - using multitaper')
 featureSelectionPwelch = figure(96);
@@ -173,14 +173,8 @@ close all
 
 if saveVariables == 1
     
-    % prepare variables
-    
-    multitaper.featMat = multitaper_featMat;
-    multitaper.featMat_allTrials = multitaper_featMat_allTrials;
-    multitaper.fisherInd = multitaper_fisherInd
-    
     dataPath = strcat('../data/',testPerson);
     currentFilename = strcat('testPerson_',testPerson,'_mtWindowSize_',num2str(multitaperParam.windowSize),...
         '_nTapers_',num2str(numberOfTappers),'_classifier_type',classifierType,'.mat');
-    save(fullfile(dataPath,currentFilename),'miParam',);
+    save(fullfile(dataPath,currentFilename),);
 end
