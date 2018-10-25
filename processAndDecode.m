@@ -6,7 +6,7 @@
 % load('channel_location_16_10-20_mi.mat') % struct containing info about the eeg channels
 % load('laplacian_16_10-20_mi.mat') % data matrix for laplacian filtering
 % 
-% %% DEFINABLE VARIABLES
+% %% DEFINABLE VARIABLES -> now in main.m
 % 
 % testPerson = 'ak3'; % options: 'ak2','ak3'
 % multitaperWindowSize = 1; % "meaningful" options: 1,0.5,0.25
@@ -35,17 +35,16 @@ numTrials = 120;
 
 % psd estimate params - common for all methods
 frameShift = 16; % [Herz] -> freq for psd windows
-frequencyRange = [4:2:40]; % frequency range of the signal we are interested in 
 
 % multitaper parameters - in one struct
 multitaperParam.windowSize = multitaperWindowSize;
 multitaperParam.numberOfTappers = numberOfTappers;
-multitaperParam.frequencyRange = frequencyRange;
+multitaperParam.frequencyRange = 4:1/multitaperParam.windowSize:40;
 
 % pwelch parameters - in one struct
 pwelchParam.psdWindow = 0.5*samplingRate;
 pwelchParam.psdNOverlap = 0.25*samplingRate;
-pwelchParam.frequencyRange = frequencyRange;
+pwelchParam.frequencyRange = 4:2:40;
 pwelchParam.windowSize = 1;
 
 % epoching parameters
@@ -119,17 +118,17 @@ pwelch.featMat_allTrials = zscore(pwelch.featMat_allTrials');
 
 % project the fisher score onto a 2D image channel x frequency
 multitaper.fisherScores = helperFunctions.projectFeatScores(multitaper.featMat_allTrials,...
-    multitaper.fisherInd,multitaper.fisherPower,frequencyRange,numChannels);
+    multitaper.fisherInd,multitaper.fisherPower,multitaperParam.frequencyRange,numChannels);
 pwelch.fisherScores = helperFunctions.projectFeatScores(pwelch.featMat_allTrials,...
-    pwelch.fisherInd,pwelch.fisherPower,frequencyRange,numChannels);
+    pwelch.fisherInd,pwelch.fisherPower,pwelchParam.frequencyRange,numChannels);
 
 % plot fisher scores
 multitaperTitle = ['Features discriminancy map based on FS: Multitaper'];
 pwelchTitle = ['Features discriminancy map based on FS: pWelch'];
 featureDiscrimMultitaper = figure(99);
-helperFunctions.plotFisherScores(frequencyRange,multitaper.fisherScores,multitaperTitle,{chanlocs16.labels})
+helperFunctions.plotFisherScores(multitaperParam.frequencyRange,multitaper.fisherScores,multitaperTitle,{chanlocs16.labels})
 featureDiscrimPwelch = figure(98);
-helperFunctions.plotFisherScores(frequencyRange,pwelch.fisherScores,pwelchTitle,{chanlocs16.labels})
+helperFunctions.plotFisherScores(pwelchParam.frequencyRange,pwelch.fisherScores,pwelchTitle,{chanlocs16.labels})
 
 
 % perform and plot feature selection for both decoder
@@ -148,10 +147,10 @@ if saveFigures == 1
     figPath = strcat('../figures/',testPerson);
     
     % generate figure names
-    fDMtName = strcat('feat_disc_map_multitaper_nTaper_ ',num2str(numberOfTappers),'_windSize_',strrep(num2str(multitaperParam.windowSize),'.',','));
-    fDPwName = strcat('feat_disc_map_pwelch_windSize_',strrep(num2str(pwelchParam.windowSize),'.',','));
-    fSMtName = strcat('feat_select_multitaper_nTapper_ _ ',num2str(numberOfTappers),'_windSize_',strrep(num2str(multitaperParam.windowSize),'.',','));
-    fSPwName = strcat('feat_select_pwelch_windSize_',strrep(num2str(pwelchParam.windowSize),'.',','));
+    fDMtName = strcat('classifierType_',classifierType,'_fdm_multitaper_nTaper_ ',num2str(numberOfTappers),'_windSize_',strrep(num2str(multitaperParam.windowSize),'.',','));
+    fDPwName = strcat('classifierType_',classifierType,'_fdm_pwelch_windSize_',strrep(num2str(pwelchParam.windowSize),'.',','));
+    fSMtName = strcat('classifierType_',classifierType,'_fs_multitaper_nTapper_ _ ',num2str(numberOfTappers),'_windSize_',strrep(num2str(multitaperParam.windowSize),'.',','));
+    fSPwName = strcat('classifierType_',classifierType,'_fs_pwelch_windSize_',strrep(num2str(pwelchParam.windowSize),'.',','));
 
     saveas(featureDiscrimMultitaper,fullfile(figPath,fDMtName),'fig')
     saveas(featureDiscrimMultitaper,fullfile(figPath,fDMtName),'pdf')
