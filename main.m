@@ -22,10 +22,17 @@ numberOfTappersArray = [3,5,10,50]; % different number of tappers used - can be 
 
 classifierTypes = {'diaglinear','linear','randomForest'}; % available: diaglinear, linear, randomForest
 
+% window parameters
+windowParam.Id = 555; % stop: '555', mi: '400'
+windowParam.window = [-2,2];
+
+pseudoOnlineWindow = [-4,6]; % window for pseudoonline class: note class starts at t(1) + windowSize
+
 saveFigures = 1; % boolean
 saveVariables = 1; % boolean
-saveFlag = [saveFigures,saveVariables];
 verbose = 1; % boolean for print statements
+
+saveFlag = [saveFigures,saveVariables];
 
 %% run for different configurations
 
@@ -36,6 +43,9 @@ for idxTestPerson = 1:size(testPersons,2)
     dataPath = ['../rsc/DataFiles/',testPerson];
     files = dir(fullfile(dataPath,'*.gdf'));
     currentFilename = {files.name};
+    
+    % preprocess data (independent of parameter configurations
+    [concatenatedDataZeros,concatenatedDataOnes] = preprocessData(currentFilename,chanlocs16,windowParam);
     
     for idxClassifierType = 1:size(classifierTypes,2)
         classifierType = classifierTypes{1,idxClassifierType};
@@ -50,7 +60,7 @@ for idxTestPerson = 1:size(testPersons,2)
                         for idxNTap = 1:size(numberOfTappersArray,2)
                             psdParam.numberOfTappers = numberOfTappersArray(idxNTap);
                             % call the processing and decoding function
-                            processAndDecode(classifierType,psdMode,psdParam,saveFlag,verbose)
+                            processAndDecode(concatenatedDataZeros,concatenatedDataOnes,classifierType,psdMode,psdParam,saveFlag,verbose)
                         end
                     end
                 case 'pWelch'
