@@ -1,47 +1,49 @@
-function [outputArg1,outputArg2] = pseudoOnlineCrossValidation(trainFeatures,pseudoOnlineFeatures, classifierParameters)
+function [class_error_training,pseudoOnlineClassLabels,pseudoOnlineScore] = pseudoOnlineCrossValidation(dataStruct,pseudoOnlineFeatures, classifierParameters,pseudoOnlineTrueLabels)
 
+% some data preparation
+featureMatrix = dataStruct.featMat_allTrials;
+trueLabels = dataStruct.trueLabels;
+numFeat = classifierParameters.numFeat;
 numFolds = classifierParameters.numFolds;
-numTrials = size(trainFeatures,3);
+numTrials = size(dataStruct.featMat,3);
+numTrainingPoints = size(dataStruct.featMat,2);
+numOnlinePoints = size(pseudoOnlineFeatures,1)/numTrials;
 numTestTrialsPerFold = floor(numTrials/numFolds); % floor - ugly hack if numTrials is not a multiple of numFolds
+
+fisherIndNumFeat = dataStruct.fisherInd(1:numFeat);
+featureMatrix = featureMatrix(:,fisherIndNumFeat);
+pseudoOnlineFeatures = pseudoOnlineFeatures(:,fisherIndNumFeat);
+
+
 
 for idxFold = 1:numFolds
     
     % trials for testing, training
-    allIndex = 1:size(trainFeatures,3);
-    testIndex = (1+numTestTrialsPerFold*(idxFold-1):numTestTrialsPerFold*idxFold);
+    allIndex = 1:numTrials*numTrainingPoints;
+    testIndex = (1+numTestTrialsPerFold*(idxFold-1)*numTrainingPoints:numTrainingPoints*numTestTrialsPerFold*idxFold);
     trainIndex = setdiff(allIndex, testIndex);
+    pseudoOnlineIndex = (1+numTestTrialsPerFold*(idxFold-1)*numOnlinePoints:numOnlinePoints*numTestTrialsPerFold*idxFold);
+    
+    % labels
+    trainLabel = trueLabels(trainIndex);
     
     % matrices with train / test data
-    trainMatrix = trainFeatures(:,:,trainIndex);
-    testMatrix = trainFeatures(:,:,testIndex);
-    pseudoOnlineTestMatrix = pseudoOnlineFeatures(:,:,testIndex);
+    trainMatrix = featureMatrix(trainIndex,:);
+    pseudoOnlineTestMatrix = pseudoOnlineFeatures(pseudoOnlineIndex,:);
+   
+    % normalize the data
+    [trainMatrix,meanTrain,stdTrain] = zscore(trainMatrix);
+    pseudoOnlineTestMatrix = (pseudoOnlineTestMatrix-meanTrain)./stdTrain;
     
-    % train and test labels
-    trainLabels = trueLabels(trainIndex,:);
-    testLabels = trueLabels(testIndex,:);
-
-    
-    classifier_linear = fitcdiscr(trainMatrix,trainLabels,'DiscrimType',type);
+    classifier_linear = fitcdiscr(trainMatrix,trainLabel,'DiscrimType',classifierParameters.type);
     %predict label for both training and testing and save class errors
     yhat_linear_Training  = predict(classifier_linear,trainMatrix);
-    [yhat_linear_Test,score]  = predict(classifier_linear,testMatrix);
-    class_error_training(idxFold) = helperFunctions.classerror(trainLabels, yhat_linear_Training);
-    class_error_testing(idxFold) = helperFunctions.classerror(testLabels, yhat_linear_Test);
+    [pseudoOnlineClassLabels{idxFold},pseudoOnlineScore{idxFold}]  = predict(classifier_linear,pseudoOnlineTestMatrix);
+    class_error_training(idxFold) = helperFunctions.classerror(trainLabel, yhat_linear_Training);
     
-    if ~isempty(r)
-        [FPR,TPR,~,A] = perfcurve(TestingLabels,score(:,2),1);
-        x = [x,FPR];
-        y = [y,TPR];
-        % auc = [auc; A];
-    end
-    if ~isempty(c)
-        cmat = confusionmat(TestingLabels',yhat_linear_Test);
-        c(:,:,idxFold) = cmat/sum(sum(cmat));
-    end
+
 end
 end
-
-
 
 
 

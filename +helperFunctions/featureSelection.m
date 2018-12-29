@@ -28,8 +28,8 @@ numFolds = classifierParam.numFolds;
 for idxClassifier = 1:numClassifier
     indexes = fisherInd(1:idxClassifier);%look for the first f best features
     currentFeatures = featureMatrix(:,indexes);%only the features selected
-    [class_train_error_linear,class_test_error_linear,~] = ...
-        helperFunctions.crossValidation(currentFeatures,trueLabels,type,numFolds,[],[]);
+    [class_train_error_linear,class_test_error_linear] = ...
+        helperFunctions.crossValidation(currentFeatures,trueLabels,type,numFolds);
     testError(idxClassifier)= mean(class_test_error_linear);
     trainError(idxClassifier) = mean(class_train_error_linear);
     testErrorStd(idxClassifier) = std(class_test_error_linear);
