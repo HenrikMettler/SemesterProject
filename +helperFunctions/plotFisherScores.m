@@ -1,7 +1,13 @@
-function  plotFisherScores(spectrogramFrequencies, fisherScores, imageTitle, channelLabels)
+function  plotFisherScores(spectrogramFrequencies, fisherScores, psdMode,classifierType,channelLabels)
 % PLOT THE FEATURE DISCRIMINANCY MAP BASED ON FISHER SCORE
 %   using the spectrogram frequencies and a specific image title plots the 
 %   feature discriminancy map, using imageTitle as a title for the plot
+if strcmp(psdMode,'multitaper')
+    imageTitle = strcat('Features discriminancy map, Param: Cl-type: ',classifierType,' psd-mode: ', psdMode, ' nTapper: ',num2str(psdParam.numberOfTappers));
+else
+    imageTitle = strcat('Features discriminancy map, Param: Cl-type: ',classifierType,' psd-mode: ', psdMode);
+end
+
 
 imagesc(spectrogramFrequencies, 1:16, fisherScores)
 title(imageTitle)

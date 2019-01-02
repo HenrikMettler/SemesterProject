@@ -1,11 +1,12 @@
-function [trueLabels,labelPerTrial] = makeLabels(stopWindow,methodParam,frameShift,numTrials)
+function [trueLabel,labelPerTrial] = makeLabels(featMat3DZero,featMat3DOne)
 
-zeroLabels =  zeros(floor(frameShift*(abs(stopWindow(1))-methodParam.windowSize)),1);
-oneLabels = ones(floor(frameShift*(stopWindow(2)-methodParam.windowSize)),1);
-labelPerTrial = [zeroLabels;oneLabels];
-trueLabels = [];
+numTrials = size(featMat3DZero,1);
+zeroLabel = zeros(size(featMat3DZero,2),1);
+oneLabel = ones(size(featMat3DOne,2),1);
+labelPerTrial = vertcat(zeroLabel,oneLabel);
+trueLabel = [];
 for idxTrial = 1:numTrials
-    trueLabels = [trueLabels;labelPerTrial];
+    trueLabel = [trueLabel;labelPerTrial];
 end
 
 end

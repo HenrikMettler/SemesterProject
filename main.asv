@@ -10,18 +10,19 @@ load('laplacian_16_10-20_mi.mat') % data matrix for laplacian filtering
 
 %% DEFINABLE VARIABLES
 
-testPersons = {'ak3'};%{'ak2','ak3','ak4','ak5','ak6','ak7','ak8','ak9','al1'}; % array of all test persons that should be used
+testPersons = {'ak2','ak3','ak4','ak5','ak6','ak7','ak8','ak9','al1'}; % array of all test persons that should be used
 
 psdModes = {'multitaper','pWelch'}; % select which psd estimators are to be used - available multitaper, pwelch
-multitaperWindowSizes = 0.5; %[1,0.5,0.25]; % multitaper window sizes - can be empty if multitaper estimator not used
+multitaperWindowSizes = 0.25; %[1,0.5,0.25]; % multitaper window sizes - can be empty if multitaper estimator not used
 numberOfTappersArray = [3,5,10,50]; % different number of tappers used - can be empty if multitaper estimator not used
 
 classifierTypes = {'diaglinear','linear','randomForest'}; % available: diaglinear, linear, randomForest
 
 % window parameters
 windowParam.Id = 555; % stop: '555', mi: '400'
-windowParam.offlineWindow = [-2,2];
-windowParam.pseudoOnlineWindow = [-4,6]; % window for pseudoonline class: note class starts at t(1) + windowSize
+windowParam.window = [-2,2];
+
+pseudoOnlineWindow = [-4,6]; % window for pseudoonline class: note class starts at t(1) + windowSize
 
 saveFigures = 1; % boolean
 saveVariables = 1; % boolean
@@ -40,8 +41,7 @@ for idxTestPerson = 1:size(testPersons,2)
     currentFilename = {files.name};
     
     % preprocess data (independent of parameter configurations
-    data = preprocessData(currentFilename,chanlocs16,windowParam);
-    % pseudoOnlineData = preprocessData(currentFilename,chanlocs16,
+    concatenatedData = preprocessData(currentFilename,chanlocs16,windowParam);
     
     for idxClassifierType = 1:size(classifierTypes,2)
         classifierType = classifierTypes{1,idxClassifierType};
@@ -56,7 +56,7 @@ for idxTestPerson = 1:size(testPersons,2)
                         for idxNTap = 1:size(numberOfTappersArray,2)
                             psdParam.numberOfTappers = numberOfTappersArray(idxNTap);
                             % call the processing and decoding function
-                            processAndDecode(data,classifierType,psdMode,psdParam,chanlocs16,saveFlag,verbose)
+                            processAndDecode(concatenatedData,classifierType,psdMode,psdParam,windowParam,saveFlag,verbose)
                         end
                     end
                 case 'pWelch'

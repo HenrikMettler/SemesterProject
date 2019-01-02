@@ -23,15 +23,13 @@ for idxFold = 1:fold
     [trainMatrix,meanTrain,stdTrain] = zscore(trainMatrix);
     testMatrix = (testMatrix-meanTrain)./stdTrain;
     
-    % switch classifer type 
-    if strcmp(type,'linear') || strcmp (type,'diaglinear')
-        classifier = fitcdiscr(trainMatrix,trainLabels,'DiscrimType',type);
-        yhat_linear_Training  = predict(classifier,trainMatrix);
-        [yhat_linear_Test,~]  = predict(classifier,testMatrix);
-        class_error_training(idxFold) = helperFunctions.classerror(trainLabels, yhat_linear_Training);
-        class_error_testing(idxFold) = helperFunctions.classerror(testLabels, yhat_linear_Test);
-    end
-        
+    % swit
+    classifier_linear = fitcdiscr(trainMatrix,trainLabels,'DiscrimType',type);
+    %predict label for both training and testing and save class errors
+    yhat_linear_Training  = predict(classifier_linear,trainMatrix);
+    [yhat_linear_Test,~]  = predict(classifier_linear,testMatrix);
+    class_error_training(idxFold) = helperFunctions.classerror(trainLabels, yhat_linear_Training);
+    class_error_testing(idxFold) = helperFunctions.classerror(testLabels, yhat_linear_Test);
     
 
 end

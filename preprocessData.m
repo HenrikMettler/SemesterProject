@@ -1,10 +1,18 @@
-function [concatenatedDataZeros,concatenatedDataOnes] = preprocessData(currentFilename,chanlocs16,windowParam)
+function data = preprocessData(currentFilename,chanlocs16,windowParam)
 % PREPROCESSING DATA - performs data preprocessing from .gdf files
 %   for each current files, a session is created and stored in an array
 %   subsequently spatial filtering (harded-coded with 'CAR' is performed
 %   epochs are extracted, and data from the different runs in concatenated
-%   if two outputs arguments are defined, data is split into two files
-%   (useful for calculating psd spectrum for two different classes)
+%   the data is then stored into a struct, with two fields:
+%    -offlineZero: data before MI - termination
+%   - offlineOne: data after MI - termination
+%   if a pseudoOnline window is defined, data contains a third field 'pseudoOnline' 
+
+if isfield(windowParam,'pseudoOnlineWindow')
+    doPseudoOnline = 1;
+else 
+    doPseudoOnline = 0;
+end
 
 % create a sessions array
 sessions = helperFunctions.createSessions(currentFilename,chanlocs16);
@@ -15,15 +23,19 @@ for idxSession = 1:size(sessions,2)
 end
 
 % create epochs 
-[epoch] = helperFunctions.epochSessions(sessions, windowParam.Id, windowParam.window);
+offlineEpochZero = helperFunctions.epochSessions(sessions, windowParam.Id, [windowParam.offlineWindow(1),0]);
+offlineEpochOne = helperFunctions.epochSessions(sessions, windowParam.Id, [0,windowParam.offlineWindow(2)]);
 
 % concatenate data from diff session for every epoch
-[concatenatedData] = helperFunctions.concatSessions(epoch);
+data.offlineZero = helperFunctions.concatSessions(offlineEpochZero);
+data.offlineOne = helperFunctions.concatSessions(offlineEpochOne);
 
-% split data into two segments
-if nargout == 2
-    concatenatedDataZeros = concatenatedData(:,:,1:-windowParam.window(1)*512);
-    concatenatedDataOnes = concatenatedData(:,:,-windowParam.window(1)*512+1:end);
+% split offline data in two parts - before MI-term and after
+% data.offlineZero = 
+
+if doPseudoOnline == 1
+    pseudoOnlineEpoch = helperFunctions.epochSessions(sessions, windowParam.Id, windowParam.pseudoOnlineWindow);
+    data.pseudoOnline = helperFunctions.concatSessions(pseudoOnlineEpoch);
 end
 
 end

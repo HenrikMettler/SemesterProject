@@ -1,4 +1,4 @@
-function classError = featureSelection(featureMatrix,fisherInd,trueLabels, classifierParam)
+function classError = featureSelection(featureMatrix,fisherInd,trueLabels, classifierType)
 % PERFORMS FEATURE SELECTION
 %
 % Input Arguments
@@ -18,22 +18,23 @@ function classError = featureSelection(featureMatrix,fisherInd,trueLabels, class
 %% parameters
 
 % extract from classifier Param
-maxFeat = classifierParam.maxFeat;
+maxFeat = 30;
 numClassifier = maxFeat;
-type = classifierParam.type;
-numFolds = classifierParam.numFolds;
+type = classifierType;
+numFolds = 10;
+
 %% do stuff
 
 
 for idxClassifier = 1:numClassifier
     indexes = fisherInd(1:idxClassifier);%look for the first f best features
     currentFeatures = featureMatrix(:,indexes);%only the features selected
-    [class_train_error_linear,class_test_error_linear] = ...
+    [classTrainError,classTestError] = ...
         helperFunctions.crossValidation(currentFeatures,trueLabels,type,numFolds);
-    testError(idxClassifier)= mean(class_test_error_linear);
-    trainError(idxClassifier) = mean(class_train_error_linear);
-    testErrorStd(idxClassifier) = std(class_test_error_linear);
-    trainErrorStd(idxClassifier) = std(class_train_error_linear);
+    testError(idxClassifier)= mean(classTestError);
+    trainError(idxClassifier) = mean(classTrainError);
+    testErrorStd(idxClassifier) = std(classTestError);
+    trainErrorStd(idxClassifier) = std(classTrainError);
 end
 
 classError.trainError = trainError;

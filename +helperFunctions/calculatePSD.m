@@ -1,8 +1,8 @@
-function [pxx,timer] = calculatePSD(dataEpoch,method,methodParam,frameShift,samplingRate)
+function [pxx,timer] = calculatePSD(data,method,methodParam,frameShift,samplingRate)
 %UNTITLED2 Summary of this function goes here
 %   Detailed explanation goes here
 %   InputArguments:
-%   - dataEpoch: 3D - Matrix MxNxR: M - number of Trials, 
+%   - data: 3D - Matrix MxNxR: M - number of Trials, 
 %                                   N - number of Channels
 %                                   R - epoch duration (in sampling rate - 512 -> 1s if samplingRate = 512
 %   - windowSize: Scalar: duration of window for spectrum calculation 
@@ -11,14 +11,14 @@ function [pxx,timer] = calculatePSD(dataEpoch,method,methodParam,frameShift,samp
 
 %% Input validation - Todo methodParams
 
-if nargin == 4
-    frameShift = 16;
+if nargin == 3
+    frameShift = 32; % 32~62.5ms if samplingRate = 512
     samplingRate = 512;
-elseif nargin == 5
+elseif nargin == 4
     samplingRate = 512;
 end         
 
-if ndims(dataEpoch) ~= 3
+if ndims(data) ~= 3
     error('dataEpoch needs to be 3 dim matrix - nTrials x nChannels x epochDur(in samplingRate')
 end
 
@@ -31,10 +31,11 @@ end
 
 windowSize = methodParam.windowSize;
 frequencyRange = methodParam.frequencyRange;
-numTrials = size(dataEpoch,1);
-numChannels = size(dataEpoch,2);
+numTrials = size(data,1);
+numChannels = size(data,2);
+numSamples = size(data,3);
 numFrequencies = size(frequencyRange,2);
-numWindows = (floor(size(dataEpoch,3)/samplingRate)-windowSize)*frameShift;
+numWindows = ((numSamples-1)/samplingRate - windowSize) * samplingRate/frameShift;
 pxx = zeros(numTrials,numWindows,numFrequencies,numChannels);
 timer = zeros(numTrials,numWindows);
 
@@ -42,11 +43,11 @@ timer = zeros(numTrials,numWindows);
 
 for idxTrial = 1:numTrials
     for idxWindow = 1:numWindows
-        currentStartIndex = 1+(idxWindow-1)*windowSize*samplingRate/frameShift; % start index for current window
+        currentStartIndex = 1+(idxWindow-1)*frameShift; % start index for current window
         currentStopIndex = samplingRate*windowSize + currentStartIndex - 1; % stop index for current window
-        currentStopIndex = min(currentStopIndex,size(dataEpoch,3)); % avoid end of data frame issues
+        currentStopIndex = min(currentStopIndex,numSamples); % avoid end of data frame issues
         currentDataIndices = (currentStartIndex:currentStopIndex); % indices corresp to proper window
-        currentData = squeeze(dataEpoch(idxTrial,:,currentDataIndices)); % squeeze into 2-dim matrix
+        currentData = squeeze(data(idxTrial,:,currentDataIndices)); % squeeze into 2-dim matrix
         
         switch method
             case 'multitaper'
@@ -54,12 +55,12 @@ for idxTrial = 1:numTrials
                 [pxx(idxTrial,idxWindow,:,:),~] = pmtm(currentData',methodParam.numberOfTappers,frequencyRange,samplingRate);
                 timer(idxTrial,idxWindow) = toc;
                 
-            case 'pwelch'
+            case 'pWelch'
                 tic
                 [pxx(idxTrial,idxWindow,:,:),~] = pwelch(currentData',methodParam.psdWindow,methodParam.psdNOverlap,frequencyRange,samplingRate);
                 timer(idxTrial,idxWindow) = toc;
             otherwise
-                errror('Method not available, select either multitaper or pwelch')
+                errror('Method not available, select either multitaper or pWelch')
         end
         
     end

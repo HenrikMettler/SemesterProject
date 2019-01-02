@@ -38,12 +38,12 @@ featMatNormalized = zscore(featMat);
 % project the fisher score onto a 2D image channel x frequency
 fisherScores = helperFunctions.projectFeatScores(featMatNormalized,fisherInd,fisherPower);
 featDiscrimMap = figure(1);
-helperFunctions.plotFisherScores(psdParam.frequencyRange,fisherScores,psdMode,classifierType{chanlocs16.labels})
+helperFunctions.plotFisherScores(psdParam.frequencyRange,fisherScores,psdMode,{chanlocs16.labels})
 
 % perform and plot feature selection for both decoder
-classError = helperFunctions.featureSelection(featMat,fisherInd,trueLabels, classifierType);
-featSelect = figure(2);
-helperFunctions.plotFeatureSelection(classError,psdMode,classifierType)
+classError = helperFunctions.featureSelection(featMat,fisherInd,trueLabels, classifierParam);
+featureSelectionMultitaper = figure(2);
+helperFunctions.plotFeatureSelection(classError,'Class error for diff no. features - using multitaper')
 
 end
 
