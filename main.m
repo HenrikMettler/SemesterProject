@@ -41,7 +41,7 @@ for idxTestPerson = 1:size(testPersons,2)
     
     % preprocess data (independent of parameter configurations
     data = preprocessData(currentFilename,chanlocs16,windowParam);
-    % pseudoOnlineData = preprocessData(currentFilename,chanlocs16,
+    numTrial = size(data.offlineOne,1);
     
     for idxClassifierType = 1:size(classifierTypes,2)
         classifierType = classifierTypes{1,idxClassifierType};
@@ -56,7 +56,7 @@ for idxTestPerson = 1:size(testPersons,2)
                         for idxNTap = 1:size(numberOfTappersArray,2)
                             psdParam.numberOfTappers = numberOfTappersArray(idxNTap);
                             % call the processing and decoding function
-                            processAndDecode(data,classifierType,psdMode,psdParam,chanlocs16,saveFlag,verbose)
+                            processAndDecode(data,classifierType,psdMode,psdParam,windowParam,chanlocs16,saveFlag,verbose)
                         end
                     end
                 case 'pWelch'

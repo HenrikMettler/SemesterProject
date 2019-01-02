@@ -1,4 +1,4 @@
-function processAndDecode(data,classifierType,psdMode,psdParam,chanlocs16,saveFlag,verbose)
+function processAndDecode(data,classifierType,psdMode,psdParam,windowParam,chanlocs16,saveFlag,verbose)
 %UNTITLED2 Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -22,11 +22,10 @@ for idxTrial = 1:size(featMat3D,1)
 end
 featMat = squeeze(featMat);
 
-% do the steps for the pseudoOnline if defined
-if doPseudoOnline == 1
-    [psdEstimatePseudoOnline,psdTimerPseudoOnline] = helperFunctions.calculatePSD(data.pseudoOnline,psdMode,psdParam);
-    [featMatPseudoOnline,featMat3DPseudoOnline] = helperFunctions.makeFeatMat(psdEstimatePseudoOnline); % featMat / featMat per Trial
-end
+% if doPseudoOnline == 1
+%     [psdEstimatePseudoOnline,psdTimerPseudoOnline] = helperFunctions.calculatePSD(data.pseudoOnline,psdMode,psdParam);
+%     [featMatPseudoOnline,featMat3DPseudoOnline] = helperFunctions.makeFeatMat(psdEstimatePseudoOnline); % featMat / featMat per Trial
+% end
 
 % create a true label vector
 [trueLabel,labelPerTrial] = helperFunctions.makeLabels(featMat3DZero,featMat3DOne);
@@ -38,12 +37,35 @@ featMatNormalized = zscore(featMat);
 % project the fisher score onto a 2D image channel x frequency
 fisherScores = helperFunctions.projectFeatScores(featMatNormalized,fisherInd,fisherPower);
 featDiscrimMap = figure(1);
-helperFunctions.plotFisherScores(psdParam.frequencyRange,fisherScores,psdMode,classifierType{chanlocs16.labels})
+helperFunctions.plotFisherScores(psdParam,fisherScores,psdMode,classifierType,{chanlocs16.labels})
 
 % perform and plot feature selection for both decoder
-classError = helperFunctions.featureSelection(featMat,fisherInd,trueLabels, classifierType);
+classError = helperFunctions.featureSelection(featMat,fisherInd,trueLabel, classifierType);
 featSelect = figure(2);
-helperFunctions.plotFeatureSelection(classError,psdMode,classifierType)
+helperFunctions.plotFeatureSelection(classError,psdMode,psdParam,classifierType)
+
+%% pseudo online classification 
+if doPseudoOnline == 1
+    % extract psd & make feature matrix
+    [psdEstimatePseudoOnline,psdTimerPseudoOnline] = helperFunctions.calculatePSD(data.pseudoOnline,psdMode,psdParam);
+    [featMatPseudoOnline,featMat3DPseudoOnline] = helperFunctions.makeFeatMat(psdEstimatePseudoOnline); % featMat / featMat per Trial
+    
+    numFeat = 5; % AUTOMATE THIS DECISION
+   
+    % create a true label vector for the pseudo online
+    pseudoOnlineTrueLabel = helperFunctions.createPseudoOnlineTrueLabel(windowParam,psdParam,featMat3DPseudoOnline);
+   
+    % perform cross-validation
+    [~,pseudoOnlineClassLabels,pseudoOnlineScore] =...
+        helperFunctions.pseudoOnlineCrossValidation...
+        (featMat,featMatPseudoOnline,trueLabel,pseudoOnlineTrueLabel,fisherInd,classifierType,numFeat);
+    % plot the pseudo online classification
+    figure(3)
+    helperFunctions.plotPseudoOnlineClassification(pseudoOnlineScore,pseudoOnlineWindow,multitaperWindowSize);
+    
+end
+
+%% save figures and variables
 
 end
 
