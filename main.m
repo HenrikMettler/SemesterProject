@@ -10,13 +10,13 @@ load('laplacian_16_10-20_mi.mat') % data matrix for laplacian filtering
 
 %% DEFINABLE VARIABLES
 
-testPersons = {'ak3'};%{'ak2','ak3','ak4','ak5','ak6','ak7','ak8','ak9','al1'}; % array of all test persons that should be used
+testPersons = {'ak2','ak3','ak4','ak5','ak6','ak7','ak8','ak9','al1'}; % array of all test persons that should be used
 
 psdModes = {'multitaper','pWelch'}; % select which psd estimators are to be used - available multitaper, pwelch
-multitaperWindowSizes = 0.5; %[1,0.5,0.25]; % multitaper window sizes - can be empty if multitaper estimator not used
+multitaperWindowSizes = [1,0.5,0.25]; % multitaper window sizes - can be empty if multitaper estimator not used
 numberOfTappersArray = [3,5,10,50]; % different number of tappers used - can be empty if multitaper estimator not used
 
-classifierTypes = {'diaglinear','linear','randomForest'}; % available: diaglinear, linear, randomForest
+classifierTypes = {'diaglinear','linear'};%,'randomForest'}; % available: diaglinear, linear, randomForest
 
 % window parameters
 windowParam.Id = 555; % stop: '555', mi: '400'
@@ -39,7 +39,7 @@ for idxTestPerson = 1:size(testPersons,2)
     files = dir(fullfile(dataPath,'*.gdf'));
     currentFilename = {files.name};
     
-    % preprocess data (independent of parameter configurations
+    % preprocess data (independent of parameter configurations)
     data = preprocessData(currentFilename,chanlocs16,windowParam);
     numTrial = size(data.offlineOne,1);
     
@@ -56,7 +56,7 @@ for idxTestPerson = 1:size(testPersons,2)
                         for idxNTap = 1:size(numberOfTappersArray,2)
                             psdParam.numberOfTappers = numberOfTappersArray(idxNTap);
                             % call the processing and decoding function
-                            processAndDecode(data,classifierType,psdMode,psdParam,windowParam,chanlocs16,saveFlag,verbose)
+                            processAndDecode(data,classifierType,psdMode,psdParam,windowParam,chanlocs16,saveFlag,testPerson,verbose)
                         end
                     end
                 case 'pWelch'
@@ -67,9 +67,7 @@ for idxTestPerson = 1:size(testPersons,2)
                     
                     % call the processing and decoding function
                     processAndDecode(classifierType,psdMode,psdParam,saveFlag,verbose)
-            end
-            
-            
+            end           
         end
     end
 end

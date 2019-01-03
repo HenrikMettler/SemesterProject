@@ -1,4 +1,4 @@
-function processAndDecode(data,classifierType,psdMode,psdParam,windowParam,chanlocs16,saveFlag,verbose)
+function processAndDecode(data,classifierType,psdMode,psdParam,windowParam,chanlocs16,saveFlag,testPerson,verbose)
 %UNTITLED2 Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -60,12 +60,78 @@ if doPseudoOnline == 1
         helperFunctions.pseudoOnlineCrossValidation...
         (featMat,featMatPseudoOnline,trueLabel,pseudoOnlineTrueLabel,fisherInd,classifierType,numFeat);
     % plot the pseudo online classification
-    figure(3)
-    helperFunctions.plotPseudoOnlineClassification(pseudoOnlineScore,pseudoOnlineWindow,multitaperWindowSize);
+    pseudoOnlineClass = figure(3);
+    helperFunctions.plotPseudoOnlineClassification(pseudoOnlineScore,windowParam.pseudoOnlineWindow,psdParam);
     
 end
 
 %% save figures and variables
+saveFigures = saveFlag(1);
+if saveFigures == 1
+    
+    % figure path
+    figPath = strcat('../figures/',testPerson);
+    
+    % generate figure names
+    switch psdMode
+        case 'multitaper'
+            featDiscrimMapName =...
+                strcat('FDMap_classifierType_',classifierType,'_psd_mode_',psdMode,...
+                '_nTaper_ ',num2str(psdParam.numberOfTappers),'_windSize_',strrep(num2str(psdParam.windowSize),'.',','));
+            featSelectName = strcat('FSel_classifierType_',classifierType,'_psd_mode_',psdMode,...
+                '_nTaper_ ',num2str(psdParam.numberOfTappers),'_windSize_',strrep(num2str(psdParam.windowSize),'.',','));
+            
+            pseudoOnlineClassName = strcat('POn_classifierType_',classifierType,'_psd_mode_',psdMode,...
+                '_nTaper_ ',num2str(psdParam.numberOfTappers),'_windSize_',strrep(num2str(psdParam.windowSize),'.',','));
+            
+        case 'pWelch'
+            featDiscrimMapName =...
+                strcat('FDMap_classifierType_',classifierType,'_psd_mode_',psdMode,...
+                '_windSize_',strrep(num2str(psdParam.windowSize),'.',','));
+            featSelectName = strcat('FSel_classifierType_',classifierType,'_psd_mode_',psdMode,...
+                '_windSize_',strrep(num2str(psdParam.windowSize),'.',','));
+            pseudoOnlineClassName = strcat('POn_classifierType_',classifierType,'_psd_mode_',psdMode,...
+                '_windSize_',strrep(num2str(psdParam.windowSize),'.',','));
+        otherwise
+            error('psdMode not defined');
+    end    
+    saveas(featDiscrimMap,fullfile(figPath,featDiscrimMapName),'fig')
+    saveas(featDiscrimMap,fullfile(figPath,featDiscrimMapName),'pdf')
+    saveas(featDiscrimMap,fullfile(figPath,featDiscrimMapName),'png')
+    saveas(featSelect,fullfile(figPath,featSelectName),'fig')
+    saveas(featSelect,fullfile(figPath,featSelectName),'pdf')
+    saveas(featSelect,fullfile(figPath,featSelectName),'png')
+    
+    saveas(pseudoOnlineClass,fullfile(figPath,pseudoOnlineClassName),'fig')
+    saveas(pseudoOnlineClass,fullfile(figPath,pseudoOnlineClassName),'pdf')
+    saveas(pseudoOnlineClass,fullfile(figPath,pseudoOnlineClassName),'png')
+    
+end
+
+close all
+
+%% saving variables
+saveVariables = saveFlag(2);
+if saveVariables == 1
+    
+    dataPath = strcat('../data/',testPerson);
+    % generate file name
+    switch psdMode
+        case 'multitaper'
+            currentFilename = strcat('Classifier_type_',classifierType,'_psd_mode_',psdMode,...
+                '_windowSize_',num2str(psdParam.windowSize),'_nTapers_',num2str(psdParam.numberOfTappers),'.mat');
+        case 'pWelch'
+            currentFilename = strcat('Classifier_type_',classifierType,'_psd_mode_',psdMode,...
+                '_windowSize_',num2str(psdParam.windowSize),'.mat');
+        otherwise
+            error('psdMode not defined');
+    end
+    
+    
+    save(fullfile(dataPath,currentFilename),'classifierType','classError','data','featMat','featMatPseudoOnline',...
+        'fisherInd','fisherPower','pseudoOnlineScore','psdMode','psdParam','windowParam');
+end
+
 
 end
 

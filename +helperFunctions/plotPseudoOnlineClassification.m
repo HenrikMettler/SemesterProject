@@ -13,7 +13,7 @@ end
 dim1 = size(currentScore,1)/size(timeVector,2);
 currentScore = reshape(currentScore,[dim1,size(timeVector,2),1]);
 meanCurrentScore = mean(currentScore,1);
-stdCurrentScore = std(currentScore,1);
+stdCurrentScore = std(currentScore,1)/2;
 hold on;
 errorbar(timeVector,meanCurrentScore(1,:,1),stdCurrentScore(1,:,1));
 ylim([0 1])
