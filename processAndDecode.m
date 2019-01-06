@@ -8,9 +8,17 @@ else
     doPseudoOnline = 0;
 end
 
-% calculate psd - estimates
+if verbose == 1
+    disp('*** STARTED CALCULATING PSD ESTIMATES ***')
+    disp(psdMode)
+    disp(psdParam.windowSize)
+end
+
+
+%% CALCULATE PSD-ESTIMATES & CREATE FEATURE MATRIX
+
 [psdEstimateZero,psdTimerZero] = helperFunctions.calculatePSD(data.offlineZero,psdMode,psdParam);
-[psdEstimateOne,psdTimerOne] = helperFunctions.calculatePSD(data.offlineOne,psdMode,psdParam);
+[psdEstimateOne,~] = helperFunctions.calculatePSD(data.offlineOne,psdMode,psdParam);
 
 % create feature matrix
 [~,featMat3DZero] = helperFunctions.makeFeatMat(psdEstimateZero); % featMat / featMat per Trial
@@ -22,97 +30,149 @@ for idxTrial = 1:size(featMat3D,1)
 end
 featMat = squeeze(featMat);
 
-% if doPseudoOnline == 1
-%     [psdEstimatePseudoOnline,psdTimerPseudoOnline] = helperFunctions.calculatePSD(data.pseudoOnline,psdMode,psdParam);
-%     [featMatPseudoOnline,featMat3DPseudoOnline] = helperFunctions.makeFeatMat(psdEstimatePseudoOnline); % featMat / featMat per Trial
-% end
-
 % create a true label vector
-[trueLabel,labelPerTrial] = helperFunctions.makeLabels(featMat3DZero,featMat3DOne);
+[trueLabel,~] = helperFunctions.makeLabels(featMat3DZero,featMat3DOne);
 
-% rank the (normalized) features (using fisher method)
-featMatNormalized = zscore(featMat);
-[fisherInd, fisherPower] = helperFunctions.rankfeat(featMatNormalized,trueLabel', 'fisher');
+%% START CLASSIFICATION
 
-% project the fisher score onto a 2D image channel x frequency
-fisherScores = helperFunctions.projectFeatScores(featMatNormalized,fisherInd,fisherPower);
-featDiscrimMap = figure(1);
-helperFunctions.plotFisherScores(psdParam,fisherScores,psdMode,classifierType,{chanlocs16.labels})
+switch classifierType 
+    case 'randomForest'
+        numTreesArray = [20,50,100,500,1000];
+        trainFract = 0.8;
+        [rfModels,trainError,testError,optNumFeat,minInd] = helperFunctions.randomForestClassification(featMat,trueLabel,numTreesArray,trainFract);
+        classError = testError(minInd);
+    otherwise % cases: 'diaglinear', 'linear'
+        %% RANK FEATURES USING FISHER SCORE
+        
+        if verbose == 1
+            disp('*** STARTED CALCULATING FISHER SCORE ***')
+        end
+        
+        % rank the (normalized) features (using fisher method)
+        featMatNormalized = zscore(featMat);
+        [fisherInd, fisherPower] = helperFunctions.rankfeat(featMatNormalized,trueLabel', 'fisher');
+        
+        % project the fisher score onto a 2D image channel x frequency
+        fisherScores = helperFunctions.projectFeatScores(featMatNormalized,fisherInd,fisherPower);
+        featDiscrimMap = figure(1);
+        helperFunctions.plotFisherScores(psdParam,fisherScores,psdMode,classifierType,{chanlocs16.labels})
+        
+        
+        %% PERFORM AND PLOT FEATURE SELECTION
+        
+        if verbose == 1
+            disp('*** STARTED FEATURE SELECTION ***')
+        end
+        
+        classError = helperFunctions.featureSelection(featMat,fisherInd,trueLabel, classifierType);
+        featSelect = figure(2);
+        helperFunctions.plotFeatureSelection(classError,psdMode,psdParam,classifierType)
+end
+%% PSEUDOONLINE CLASSIFICATION
 
-% perform and plot feature selection for both decoder
-classError = helperFunctions.featureSelection(featMat,fisherInd,trueLabel, classifierType);
-featSelect = figure(2);
-helperFunctions.plotFeatureSelection(classError,psdMode,psdParam,classifierType)
-
-%% pseudo online classification 
 if doPseudoOnline == 1
+    
+    if verbose == 1
+        disp('*** STARTED PSEUDOONLINE ***')
+    end
+    
     % extract psd & make feature matrix
-    [psdEstimatePseudoOnline,psdTimerPseudoOnline] = helperFunctions.calculatePSD(data.pseudoOnline,psdMode,psdParam);
+    [psdEstimatePseudoOnline,~] = helperFunctions.calculatePSD(data.pseudoOnline,psdMode,psdParam);
     [featMatPseudoOnline,featMat3DPseudoOnline] = helperFunctions.makeFeatMat(psdEstimatePseudoOnline); % featMat / featMat per Trial
-    
-    numFeat = 5; % AUTOMATE THIS DECISION
-   
-    % create a true label vector for the pseudo online
-    pseudoOnlineTrueLabel = helperFunctions.createPseudoOnlineTrueLabel(windowParam,psdParam,featMat3DPseudoOnline);
-   
-    % perform cross-validation
-    [~,pseudoOnlineClassLabels,pseudoOnlineScore] =...
-        helperFunctions.pseudoOnlineCrossValidation...
-        (featMat,featMatPseudoOnline,trueLabel,pseudoOnlineTrueLabel,fisherInd,classifierType,numFeat);
-    % plot the pseudo online classification
-    pseudoOnlineClass = figure(3);
-    helperFunctions.plotPseudoOnlineClassification(pseudoOnlineScore,windowParam.pseudoOnlineWindow,psdParam);
-    
+    switch classifierType
+        case 'randomForest'
+            [pseudoOnlineLabels,pseudoOnlineScore] = helperFunctions.randomForestOnline(rfModels{1,minInd},featMatPseudoOnline);
+            % plot the pseudo online classification
+            pseudoOnlineClass = figure(3);
+            helperFunctions.plotRandomForestPseudoOnlineClassification(pseudoOnlineScore,windowParam.pseudoOnlineWindow,psdParam);
+        otherwise
+            
+            numFeat = 5;
+            
+            % create a true label vector for the pseudo online
+            pseudoOnlineTrueLabel = helperFunctions.createPseudoOnlineTrueLabel(windowParam,psdParam,featMat3DPseudoOnline);
+            
+            % perform cross-validation
+            [~,~,pseudoOnlineScore] =...
+                helperFunctions.pseudoOnlineCrossValidation...
+                (featMat,featMatPseudoOnline,trueLabel,pseudoOnlineTrueLabel,fisherInd,classifierType,numFeat);
+            % plot the pseudo online classification
+            pseudoOnlineClass = figure(3);
+            helperFunctions.plotPseudoOnlineClassification(pseudoOnlineScore,windowParam.pseudoOnlineWindow,psdParam);
+            
+    end
 end
 
-%% save figures and variables
+%% SAVE FIGURES
 saveFigures = saveFlag(1);
 if saveFigures == 1
     
+    if verbose == 1
+        disp('*** SAVING FIGURES ***')
+    end
+    
+    
     % figure path
     figPath = strcat('../figures/',testPerson);
-    
-    % generate figure names
-    switch psdMode
-        case 'multitaper'
-            featDiscrimMapName =...
-                strcat('FDMap_classifierType_',classifierType,'_psd_mode_',psdMode,...
-                '_nTaper_ ',num2str(psdParam.numberOfTappers),'_windSize_',strrep(num2str(psdParam.windowSize),'.',','));
-            featSelectName = strcat('FSel_classifierType_',classifierType,'_psd_mode_',psdMode,...
-                '_nTaper_ ',num2str(psdParam.numberOfTappers),'_windSize_',strrep(num2str(psdParam.windowSize),'.',','));
-            
-            pseudoOnlineClassName = strcat('POn_classifierType_',classifierType,'_psd_mode_',psdMode,...
-                '_nTaper_ ',num2str(psdParam.numberOfTappers),'_windSize_',strrep(num2str(psdParam.windowSize),'.',','));
-            
-        case 'pWelch'
-            featDiscrimMapName =...
-                strcat('FDMap_classifierType_',classifierType,'_psd_mode_',psdMode,...
-                '_windSize_',strrep(num2str(psdParam.windowSize),'.',','));
-            featSelectName = strcat('FSel_classifierType_',classifierType,'_psd_mode_',psdMode,...
-                '_windSize_',strrep(num2str(psdParam.windowSize),'.',','));
-            pseudoOnlineClassName = strcat('POn_classifierType_',classifierType,'_psd_mode_',psdMode,...
-                '_windSize_',strrep(num2str(psdParam.windowSize),'.',','));
+    switch classifierType
+
+        case 'randomForest'
+            switch psdMode
+                case 'multitaper'
+                     pseudoOnlineClassName = strcat('POn_classifierType_',classifierType,'_psd_mode_',psdMode,...
+                    '_nTaper_ ',num2str(psdParam.numberOfTappers),'_windSize_',strrep(num2str(psdParam.windowSize),'.',','));
+                case 'pWelch'
+                     pseudoOnlineClassName = strcat('POn_classifierType_',classifierType,'_psd_mode_',psdMode,...
+                    '_windSize_',strrep(num2str(psdParam.windowSize),'.',','));
+                otherwise
+            end
         otherwise
-            error('psdMode not defined');
-    end    
-    saveas(featDiscrimMap,fullfile(figPath,featDiscrimMapName),'fig')
-    saveas(featDiscrimMap,fullfile(figPath,featDiscrimMapName),'pdf')
-    saveas(featDiscrimMap,fullfile(figPath,featDiscrimMapName),'png')
-    saveas(featSelect,fullfile(figPath,featSelectName),'fig')
-    saveas(featSelect,fullfile(figPath,featSelectName),'pdf')
-    saveas(featSelect,fullfile(figPath,featSelectName),'png')
+            
+            switch psdMode
+                case 'multitaper'
+                    featDiscrimMapName =...
+                        strcat('FDMap_classifierType_',classifierType,'_psd_mode_',psdMode,...
+                        '_nTaper_ ',num2str(psdParam.numberOfTappers),'_windSize_',strrep(num2str(psdParam.windowSize),'.',','));
+                    featSelectName = strcat('FSel_classifierType_',classifierType,'_psd_mode_',psdMode,...
+                        '_nTaper_ ',num2str(psdParam.numberOfTappers),'_windSize_',strrep(num2str(psdParam.windowSize),'.',','));
+                    
+                    pseudoOnlineClassName = strcat('POn_classifierType_',classifierType,'_psd_mode_',psdMode,...
+                    '_nTaper_ ',num2str(psdParam.numberOfTappers),'_windSize_',strrep(num2str(psdParam.windowSize),'.',','));
+                
+            case 'pWelch'
+                featDiscrimMapName =...
+                    strcat('FDMap_classifierType_',classifierType,'_psd_mode_',psdMode,...
+                    '_windSize_',strrep(num2str(psdParam.windowSize),'.',','));
+                featSelectName = strcat('FSel_classifierType_',classifierType,'_psd_mode_',psdMode,...
+                    '_windSize_',strrep(num2str(psdParam.windowSize),'.',','));
+                pseudoOnlineClassName = strcat('POn_classifierType_',classifierType,'_psd_mode_',psdMode,...
+                    '_windSize_',strrep(num2str(psdParam.windowSize),'.',','));
+            otherwise
+                error('psdMode not defined');
+        end
+        saveas(featDiscrimMap,fullfile(figPath,featDiscrimMapName),'fig')
+        saveas(featDiscrimMap,fullfile(figPath,featDiscrimMapName),'pdf')
+        saveas(featDiscrimMap,fullfile(figPath,featDiscrimMapName),'png')
+        saveas(featSelect,fullfile(figPath,featSelectName),'fig')
+        saveas(featSelect,fullfile(figPath,featSelectName),'pdf')
+        saveas(featSelect,fullfile(figPath,featSelectName),'png')
+        
+    end
     
     saveas(pseudoOnlineClass,fullfile(figPath,pseudoOnlineClassName),'fig')
     saveas(pseudoOnlineClass,fullfile(figPath,pseudoOnlineClassName),'pdf')
     saveas(pseudoOnlineClass,fullfile(figPath,pseudoOnlineClassName),'png')
-    
 end
-
 close all
 
-%% saving variables
+%% SAVE VARIABLES
+
 saveVariables = saveFlag(2);
 if saveVariables == 1
+    
+    if verbose == 1
+        disp('*** SAVING VARIABLES ***')
+    end
     
     dataPath = strcat('../data/',testPerson);
     % generate file name
@@ -127,11 +187,18 @@ if saveVariables == 1
             error('psdMode not defined');
     end
     
-    
-    save(fullfile(dataPath,currentFilename),'classifierType','classError','data','featMat','featMatPseudoOnline',...
-        'fisherInd','fisherPower','pseudoOnlineScore','psdMode','psdParam','windowParam');
+    switch classifierType
+        case 'randomForest'
+            save(fullfile(dataPath,currentFilename),'classifierType','classError','data','featMat','featMatPseudoOnline',...
+                'pseudoOnlineScore','psdMode','psdParam','windowParam','psdTimerZero');
+            
+        otherwise
+            save(fullfile(dataPath,currentFilename),'classifierType','classError','data','featMat','featMatPseudoOnline',...
+                'fisherInd','fisherPower','pseudoOnlineScore','psdMode','psdParam','windowParam','psdTimerZero');
+    end
 end
-
+    
+   
 
 end
 

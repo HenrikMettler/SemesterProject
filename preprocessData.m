@@ -1,4 +1,4 @@
-function data = preprocessData(currentFilename,chanlocs16,windowParam)
+function data = preprocessData(currentFilename,chanlocs16,windowParam,verbose)
 % PREPROCESSING DATA - performs data preprocessing from .gdf files
 %   for each current files, a session is created and stored in an array
 %   subsequently spatial filtering (harded-coded with 'CAR' is performed
@@ -8,10 +8,15 @@ function data = preprocessData(currentFilename,chanlocs16,windowParam)
 %   - offlineOne: data after MI - termination
 %   if a pseudoOnline window is defined, data contains a third field 'pseudoOnline' 
 
+
 if isfield(windowParam,'pseudoOnlineWindow')
     doPseudoOnline = 1;
 else 
     doPseudoOnline = 0;
+end
+
+if verbose == 1
+    disp('*** STARTED DATA PREPROCESSING ***')
 end
 
 % create a sessions array
@@ -36,6 +41,10 @@ data.offlineOne = helperFunctions.concatSessions(offlineEpochOne);
 if doPseudoOnline == 1
     pseudoOnlineEpoch = helperFunctions.epochSessions(sessions, windowParam.Id, windowParam.pseudoOnlineWindow);
     data.pseudoOnline = helperFunctions.concatSessions(pseudoOnlineEpoch);
+end
+
+if verbose == 1
+    disp('*** DATE PREPROCESSING FINISHED ***')
 end
 
 end

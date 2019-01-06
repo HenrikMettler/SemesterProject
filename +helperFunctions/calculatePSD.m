@@ -57,7 +57,7 @@ for idxTrial = 1:numTrials
                 
             case 'pWelch'
                 tic
-                [pxx(idxTrial,idxWindow,:,:),~] = pwelch(currentData',methodParam.psdWindow,methodParam.psdNOverlap,frequencyRange,samplingRate);
+                [pxx(idxTrial,idxWindow,:,:),~] = pwelch(currentData',methodParam.windowSize*samplingRate,methodParam.psdNOverlap*samplingRate,frequencyRange,samplingRate);
                 timer(idxTrial,idxWindow) = toc;
             otherwise
                 errror('Method not available, select either multitaper or pWelch')
